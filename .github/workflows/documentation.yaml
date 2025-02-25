@@ -1,0 +1,70 @@
+# Name pipeline
+name: Documentation
+
+# Where it will run?
+on:
+    push:
+        branches: ["main"]
+
+# What permissions i have ?
+permissions:
+    contents: read
+    pages: write
+    id-token: write
+
+# Jobs
+jobs:
+    documentation:
+        runs-on: ubuntu-latest
+
+        # Sequence of tasks
+        steps:
+        # Download the repository
+        - name: Checkout repository
+          uses: actions/checkout@v4
+  
+        # Install the necessary dependicies for the compilation and generation of documentation
+        - name: Install dependencies
+          run: sudo apt-get update && sudo apt-get install -y doxygen graphviz
+  
+        # Genearate the documentation with doxygen inside the /docs folder
+        - name: Generate documentation
+          run: make documentation
+  
+        # Upload the documentation as an artifact
+        - name: Upload documentation artifact
+          uses: actions/upload-artifact@v4
+          with:
+            name: doxygen-docs
+            path: docs/html
+  
+    deploy:
+      # Ensures `deploy` runs only if `build` succeeds    
+      needs: documentation
+      
+      # It will run the tasks on a fresh image on ubuntu
+      runs-on: ubuntu-latest
+      
+      environment:
+        name: github-pages
+        url: ${{ steps.deployment.outputs.page_url }}
+  
+      steps:
+        - name: Download documentation artifact
+          uses: actions/download-artifact@v4
+          with:
+            name: doxygen-docs
+            path: docs/html
+  
+        - name: Setup GitHub Pages
+          uses: actions/configure-pages@v5
+  
+        - name: Upload to GitHub Pages
+          uses: actions/upload-pages-artifact@v3
+          with:
+            path: docs/html
+            
+        - name: Deploy to GitHub Pages
+          id: deployment
+          uses: actions/deploy-pages@v4
+  
